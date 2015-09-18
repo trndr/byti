@@ -634,7 +634,7 @@ class Correction:
         self.groups = Radiobutton(self.groupFrame, text="Gimburlamb", variable=self.group, value="G").pack(anchor=W)
         self.groups = Radiobutton(self.groupFrame, text="Veðurlamb", variable=self.group, value="V").pack(anchor=W)
         self.groups = Radiobutton(self.groupFrame, text="Brundur", variable=self.group, value="BR").pack(anchor=W)
-        self.groups = Radiobutton(self.groupFrame, text="test", variable=self.group, value="IB").pack(anchor=W)
+        self.groups = Radiobutton(self.groupFrame, text="Ikki í býti", variable=self.group, value="IB").pack(anchor=W)
         self.group.set(selected["group"])
         self.groupFrame.pack()
         self.buttonFrame=Frame(self.top)
