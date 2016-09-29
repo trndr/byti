@@ -123,7 +123,6 @@ class Application(Frame):
         self.groups = Radiobutton(self.groupFrame, text="Veðurlamb", variable=self.group, value="V").pack(anchor=W)
         self.groupFrame.pack(anchor=N)
         
-
         self.buttonFrame=Frame(self)
         self.addElementButton = Button(self.buttonFrame, text="Leg afturat")
         self.addElementButton["command"] = self.addElement
@@ -216,7 +215,7 @@ class Application(Frame):
             bucketList=[0]*bucketListLength
             for sheep in groups[group]:
                 bucketList[int(sheep-minimumWeight)]+=1
-            print(len(groups[group]))
+            #print(len(groups[group]))
             size=0.8
             c.drawString(0.6*cm, (27-i*size)*cm, groupNames[group])
             i+=1
@@ -468,7 +467,7 @@ class Divider:
                 brundirPrint=list(map(lambda x:"{0:4d}{1:10.0f} {2:s}".format(x["number"], x["weight"], x["group"]), brundir))
                 for i in range(int((len(brundir)+1)/2)):
                     currentPrintList=brundirPrint[i:i+2]
-                    print(currentPrintList)
+                    #print(currentPrintList)
                     for j in range(17):
                         currentPrintList.insert(1,"")
                     popUp=Printer(self.top, currentPrintList, "Brundir"+str(i))
