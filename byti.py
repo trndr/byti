@@ -687,5 +687,7 @@ class PopUp:
     def acceptResponce(self):
         self.responce=True
         self.cancel()
-
+pdfDirectory=os.path.join(os.getcwd(),"pdf")
+if not os.path.exists(pdfDirectory):
+    os.makedirs(pdfDirectory)
 app=Application().start()
