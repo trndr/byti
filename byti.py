@@ -397,8 +397,17 @@ class Divider:
             i+=1
         return(len(group)-1)
 
+    def calculateMeanWeight(self):
+        interesting=list(filter(lambda x: "V" in x["group"] or "G" in x["group"] or "AE" in x["group"],sheeps))
+        #print(float(sum(list(map(lambda x:x["weight"],interesting))))/len(interesting))
+        if len(interesting)>0:
+            self.meanWeight=float(sum(list(map(lambda x:x["weight"], interesting))))/len(interesting)
+#            print(self.meanWeight)
+        else:
+            self.meanWeight=0
+#        self.meanWeightText.set(self.meanWeight)
     def divide(self):
-        self.meanWeight=float(sum(list(map(lambda x:x["weight"], sheeps))))/len(sheeps)
+        self.calculateMeanWeight()
         if self.partsVarInput.get()!="":
             parts=int(self.partsVarInput.get())
             groups=[[],[],[]]
@@ -467,8 +476,9 @@ class Divider:
                     popUp=Printer(self.top, partsList[i].getPrittySheep(), partsList[i].getPartName())
                 brundirPrint=list(map(lambda x:"{0:4d}{1:10.0f} {2:s}".format(x["number"], x["weight"], x["group"]), brundir))
                 for i in range(int((len(brundir)+1)/2)):
-                    currentPrintList=brundirPrint[i:i+2]
-                    #print(currentPrintList)
+                    currentPrintList=brundirPrint[i*2:i*2+2]
+                    print(currentPrintList)
+                    print()
                     for j in range(17):
                         currentPrintList.insert(1,"")
                     popUp=Printer(self.top, currentPrintList, "Brundir"+str(i))
@@ -691,4 +701,5 @@ class PopUp:
 pdfDirectory=os.path.join(os.getcwd(),"pdf")
 if not os.path.exists(pdfDirectory):
     os.makedirs(pdfDirectory)
-app=Application().start()
+if __name__=="__main__":
+    app=Application().start()
