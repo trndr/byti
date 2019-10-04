@@ -1,36 +1,146 @@
 #!/usr/bin/env python3
 from tkinter import *
 import tkinter.font
-import numpy, os, sys
+import os, sys
 from datetime import date
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
+import math
+import numpy
 
 #TODO Brundir
 
-sheeps=[]
+class Sheep:
+    def __init__(self):
+        self.sheep=[]
+    def add(self,sheep):
+        self.sheep.append(sheep)
+        print(self.sheep[-1])
+    def load_from_file(self,filename):
+        self.sheep=[]
+        with open(filename) as f:
+            lines=f.readlines()
+            for line in lines:
+                if line != "":
+                    number,weight,group=line.split(";")
+                    self.add({"number":int(number.strip()),"weight":float(weight.strip()),"group":group.strip()})
+    def save_to_file(self,filename):
+        with open(filename,"w") as f:
+            for sheep in self.sheep:
+                f.write("{0:4d};{1:10.2f};{2:s}\n".format(sheep["number"], sheep["weight"], sheep["group"]))
+    def get_sheep(self,index):
+        return self.sheep[index]
+    def update_sheep(self,index,properties):
+        self.sheep[index]=properties
+    def get_highies_number(self):
+        return max(map(lambda x:x["number"],self.sheep))
+    def get_count(self):
+        return len(list(filter(lambda x: x["group"] in ["V","G","AE"],self.sheep)))
+    def get_mean_weight(self):
+        interesting=list(filter(lambda x: x["group"] in ["V","G","AE"],self.sheep))
+        if len(interesting)>0:
+            return float(sum(list(map(lambda x:x["weight"], interesting))))/len(interesting)
+        else:
+            return 0
+    def get_full_count(self):
+        return(len(self.sheep))
+    def get_full_mean_weight(self):
+        if self.get_full_count()>0:
+            return sum(map(lambda x:x["weight"],self.sheep))/get_full_count()
+        else:
+            return 0
+    def equivalent_weight(self, weight, typeFrom, typeTo):
+        if (typeFrom=="AE"):
+            if (typeTo=="G"):
+                return(weight)
+            else:
+                return(weight)
+        if (typeFrom=="G"):
+            if (typeTo=="V"):
+                return(weight)
+            else:
+                return(weight)
+        if (typeFrom=="V"):
+            if (typeTo=="G"):
+                return(weight)
+            else:
+                return(weight)
+    def find_closest_to(self, weight, group):
+        i=0
+        differenceLast=abs(weight-group[i]["weight"])
+        while (i<len(group)-1):
+            difference=abs(weight-group[i+1]["weight"])
+            if difference>differenceLast:
+                return(i)
+            differenceLast=difference
+            i+=1
+        return(len(group)-1)
+    def get_parts(self,number_of_parts,berintsmork=False):
+        groups_to_divide=[[],[],[]]
+        groups_to_divide[0]=list(filter(lambda x:x["group"]=="AE",self.sheep))
+        groups_to_divide[1]=list(filter(lambda x:x["group"]=="G",self.sheep))
+        groups_to_divide[2]=list(filter(lambda x:x["group"]=="V",self.sheep))
+        parts=[]
+        ignored=list(filter(lambda x:x["group"]=="IB",self.sheep))
+        brundir=list(filter(lambda x:x["group"]=="BR",self.sheep))
+        #print(groups_to_divide,brundir,ignored)
+        for i in range(number_of_parts):
+            parts.append(Part("Partur nummar "+str(i+1)))
+
+        partBerintmork=Part("Berintsmørk")
+        if berintsmork:
+            for group in groups_to_divide:
+                group.sort(key=lambda element: element["weight"])
+            for i in range(12):
+                closest=self.find_closest_to(self.get_mean_weight(), groups_to_divide[2])
+                partBerintmork.add(groups_to_divide[2].pop(closest))
+
+        groups_to_divide.sort(key=len)
+        for group in groups_to_divide:
+            group.sort(key=lambda element: element["weight"])
+            if len(group)>0:
+                print(group[0]["group"]+str(sum(map(lambda x:x["weight"], group))/len(group)))
+
+        NotFirstGo=False
+        for group in groups_to_divide:
+            if len(group)>0:
+                groupType=group[0]["group"]
+            averageWeight=-1
+            numberOfSplits=math.ceil(len(group)/number_of_parts)
+            for split in range(numberOfSplits):
+                parts.sort(key=lambda part:part.calculationWeight)
+                if(split%2==0):
+                    parts.reverse()
+                group.reverse()
+                for i in range(number_of_parts):
+                    try:
+                        parts[i].add(group.pop())
+                    except IndexError as e:
+                        if averageWeight==-1:
+                            averageWeight=sum(list(map(lambda x:x.calculationWeight,parts[:i])))/float(i)
+                        missingWeight=averageWeight-parts[i].calculationWeight
+                        equivalentWeight=self.equivalent_weight(missingWeight, groupType, groups_to_divide[2][0]["group"])
+                        closest=self.find_closest_to(equivalentWeight, groups_to_divide[2])
+                        calWeight=self.equivalent_weight(groups_to_divide[2][closest]["weight"], groups_to_divide[2][0]["group"],group)
+                        parts[i].add(groups_to_divide[2].pop(closest), calWeight)
+        if berintsmork:
+            parts.append(partBerintmork)
+        return parts,brundir,ignored
+
+
 class Application(Frame):
     def loadFromFile(self, fileName):
         try:
-            fileStream = open(fileName, "r")
-            global sheeps
-            sheeps=[]
-            for line in fileStream:
-                splitedLine = line.split(";")
-                sheeps.append({"number":int(splitedLine[0].strip(" ")), "weight":float(splitedLine[1].strip(" ")), "group": splitedLine[2][:-1]})
-            
-            fileStream.close()
+            self.known_sheep.load_from_file(fileName)
 
-        except:
+        except Exception as e:
+            print(e)
             return(0)
         self.remakeListBox()
         return(1)
 
     def saveToFile(self, fileName):
-        fileStream = open(fileName, 'w')
-        for sheep in sheeps:
-            fileStream.write("{0:4d};{1:10.2f};{2:s}\n".format(sheep["number"], sheep["weight"], sheep["group"]))
-        fileStream.close()
+        self.known_sheep.save_to_file(fileName)
         return(True)
 
     def addElement(self, event="some"):
@@ -43,7 +153,7 @@ class Application(Frame):
             self.listbox.insert(END, "{0:4d}{1:10.2f} {2:s}".format(sheep["number"], sheep["weight"], sheep["group"]))
             self.weight.delete(0, END)
             self.number.set(self.number.get()+1)
-            sheeps.append(sheep)
+            self.known_sheep.add(sheep)
             self.listbox.see(END)
 
     def validate(self, action, index, value_if_allowed,
@@ -72,11 +182,12 @@ class Application(Frame):
             pass
     def correct(self):
         if self.currentlySelected>=0:
-            correction=Correction(self.root, sheeps[self.currentlySelected])
+            correction=Correction(self.root, self.known_sheep.get_sheep(self.currentlySelected))
             self.root.wait_window(correction.top)
             responce=correction.getResponce()
             if responce[0]:
-                sheeps[self.currentlySelected]=responce[1]
+                print(responce)
+                self.known_sheep.update_sheep(self.currentlySelected,responce[1])
                 self.remakeListBox()
 #        else:
 #            print(self.currentlySelected)
@@ -98,10 +209,10 @@ class Application(Frame):
         self.listbox.delete(0, END)
         self.number.set(0)
         backupFile = open("viga.bac", "w")
-        for sheep in sheeps:
+        for sheep in self.known_sheep.sheep:
             self.listbox.insert(END, "{0:4d}{1:10.2f} {2:s}".format(sheep["number"], sheep["weight"], sheep["group"]))
             backupFile.write("{0:4d};{1:10.2f};{2:s}\n".format(sheep["number"], sheep["weight"], sheep["group"]))
-        self.number.set(len(sheeps)+1)
+        self.number.set(self.known_sheep.get_highies_number()+1)
         backupFile.close()
 
     def createWeightWidget(self):
@@ -156,6 +267,7 @@ class Application(Frame):
         self.createWidgets()
         self.pack(expand=1, fill=BOTH)
         self.hasCloseOpen=False
+        self.known_sheep=Sheep()
     
     def createMenuWidget(self):
         menubar=Menu(self.root)
@@ -252,7 +364,7 @@ class Application(Frame):
         return
 
     def startDivide(self):
-        Divider(self.root)
+        Divider(self.root,self.known_sheep)
     
     def start(self):
         try:
@@ -342,10 +454,11 @@ class Divider:
         else:
             return False
 
-    def __init__(self, parent):
+    def __init__(self, parent,known_sheep):
         top = self.top = Toplevel(parent)
         self.top.transient(parent)
         self.parent=(parent)
+        self.known_sheep=known_sheep
         partsFrame = Frame(top)
         partsLabel = Label(partsFrame, text="Partar:")
         partsLabel.pack({"side" : "left"})
@@ -370,108 +483,14 @@ class Divider:
         self.parent.focus_set()
         self.top.destroy()
           
-    def equivalentWeight(self, weight, typeFrom, typeTo):
-        if (typeFrom=="AE"):
-            if (typeTo=="G"):
-                return(weight)
-            else:
-                return(weight)
-        if (typeFrom=="G"):
-            if (typeTo=="V"):
-                return(weight)
-            else:
-                return(weight)
-        if (typeFrom=="V"):
-            if (typeTo=="G"):
-                return(weight)
-            else:
-                return(weight)
-    def findClosestTo(self, weight, group):
-        i=0
-        differenceLast=numpy.abs(weight-group[i]["weight"])
-        while (i<len(group)-1):
-            difference=numpy.abs(weight-group[i+1]["weight"])
-            if difference>differenceLast:
-                return(i)
-            differenceLast=difference
-            i+=1
-        return(len(group)-1)
-
-    def calculateMeanWeight(self):
-        interesting=list(filter(lambda x: "V" in x["group"] or "G" in x["group"] or "AE" in x["group"],sheeps))
-        #print(float(sum(list(map(lambda x:x["weight"],interesting))))/len(interesting))
-        if len(interesting)>0:
-            self.meanWeight=float(sum(list(map(lambda x:x["weight"], interesting))))/len(interesting)
-#            print(self.meanWeight)
-        else:
-            self.meanWeight=0
-#        self.meanWeightText.set(self.meanWeight)
     def divide(self):
-        self.calculateMeanWeight()
         if self.partsVarInput.get()!="":
             parts=int(self.partsVarInput.get())
-            groups=[[],[],[]]
-            partsList=[]
-            ignored=[]
-            brundir=[]
-            for i in range(parts):
-                partsList.append(Part("Partur nummar "+str(i+1)))
-            for sheep in sheeps:
-                if sheep["group"]=="G":
-                    groups[1].append(sheep)
-                else:
-                    if sheep["group"]=="V":
-                        groups[2].append(sheep)
-                    else: 
-                        if sheep["group"]=="AE":
-                            groups[0].append(sheep)
-                        else:
-                            if sheep["group"]=="BR":
-                                brundir.append(sheep)
-                            else:
-                                ignored.append(sheep)
 
-            totalSheep=sum(map(lambda x:len(x), groups))
+            totalSheep=self.known_sheep.get_count()
             if (totalSheep%parts==0 or (self.berintsmork.get()==1 and (totalSheep-12)%parts==0)):
-                partBerintmork=Part("Berintsmørk")
-                if (self.berintsmork.get()==1):
-                    groups.sort(key=len)
-                    for group in groups:
-                        group.sort(key=lambda element: element["weight"])
-                    for i in range(12):
-                        closest=self.findClosestTo(self.meanWeight, groups[2])
-                        partBerintmork.add(groups[2].pop(closest))
-                    
-                groups.sort(key=len)
-                for group in groups:
-                    group.sort(key=lambda element: element["weight"])
-                    if len(group)>0:
-                        print(group[0]["group"]+str(sum(map(lambda x:x["weight"], group))/len(group)))
-                NotFirstGo=False
-                for group in groups:
-                    if len(group)>0:
-                        groupType=group[0]["group"]
-                    averageWeight=-1
-                    numberOfSplits=int(numpy.ceil(float(len(group))/parts))
-                    for split in range(numberOfSplits):
-                        partsList.sort(key=lambda part:part.calculationWeight)
-                        if(split%2==0):
-                            partsList.reverse()
-                        group.reverse()
-                        for i in range(parts):
-                            try:
-                                partsList[i].add(group.pop())
-                            except IndexError as e:
-                                if averageWeight==-1:
-                                    averageWeight=sum(list(map(lambda x:x.calculationWeight,partsList[:i])))/float(i)
-                                missingWeight=averageWeight-partsList[i].calculationWeight
-                                equivalentWeight=self.equivalentWeight(missingWeight, groupType, groups[2][0]["group"])
-                                closest=self.findClosestTo(equivalentWeight, groups[2])
-                                calWeight=self.equivalentWeight(groups[2][closest]["weight"], groups[2][0]["group"],group)
-                                partsList[i].add(groups[2].pop(closest), calWeight)
-    
-                if (self.berintsmork.get()==1):
-                    partsList.append(partBerintmork)
+                partsList,brundir,ignored=self.known_sheep.get_parts(parts,self.berintsmork.get()==1)
+
                 for i in range(len(partsList)):
                     popUp=Printer(self.top, partsList[i].getPrittySheep(), partsList[i].getPartName())
                 brundirPrint=list(map(lambda x:"{0:4d}{1:10.0f} {2:s}".format(x["number"], x["weight"], x["group"]), brundir))
@@ -499,9 +518,9 @@ class Divider:
 
                 self.outPutText=""
                 if (self.berintsmork.get()==1):
-                    self.outPutText+="Býti er liðugt, tikin vóru "+str((totalSheep-12)/parts)+"\nMiðalvektin var "+str(self.meanWeight)
+                    self.outPutText+="Býti er liðugt, tikin vóru "+str((totalSheep-12)/parts)+"\nMiðalvektin var "+str(self.known_sheep.get_mean_weight())
                 else:
-                    self.outPutText+="Býti er liðugt, tikin vóru "+str(totalSheep/parts)+"\nMiðalvektin var "+str(self.meanWeight)
+                    self.outPutText+="Býti er liðugt, tikin vóru "+str(totalSheep/parts)+"\nMiðalvektin var "+str(self.known_sheep.get_mean_weight())
                 self.outPutText+="\n"
                 for i in partsList:
                     stats=i.getStats()
