@@ -6,7 +6,6 @@ from datetime import date
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
 import math
-import numpy
 
 #TODO Brundir
 
@@ -15,7 +14,6 @@ class Sheep:
         self.sheep=[]
     def add(self,sheep):
         self.sheep.append(sheep)
-        print(self.sheep[-1])
     def load_from_file(self,filename):
         self.sheep=[]
         with open(filename) as f:
