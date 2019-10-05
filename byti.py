@@ -2,9 +2,7 @@
 from tkinter import *
 import tkinter.font
 import os, sys
-from datetime import date
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import cm
+import datetime
 import math
 
 #TODO Brundir
@@ -96,8 +94,8 @@ class Sheep:
         groups_to_divide.sort(key=len)
         for group in groups_to_divide:
             group.sort(key=lambda element: element["weight"])
-            if len(group)>0:
-                print(group[0]["group"]+str(sum(map(lambda x:x["weight"], group))/len(group)))
+#            if len(group)>0:
+#                print(group[0]["group"]+str(sum(map(lambda x:x["weight"], group))/len(group)))
 
         NotFirstGo=False
         for group in groups_to_divide:
@@ -184,7 +182,7 @@ class Application(Frame):
             self.root.wait_window(correction.top)
             responce=correction.getResponce()
             if responce[0]:
-                print(responce)
+                #print(responce)
                 self.known_sheep.update_sheep(self.currentlySelected,responce[1])
                 self.remakeListBox()
 #        else:
@@ -298,7 +296,9 @@ class Application(Frame):
             else:
                 return
         return
+    #TODO Fix
     def generateStatics(self):
+        return
         groups=[]
         groups.append(list(map(lambda x:x["weight"],filter(lambda x:x["group"]=="V",sheeps))))
         groups.append(list(map(lambda x:x["weight"],filter(lambda x:x["group"]=="G",sheeps))))
@@ -316,8 +316,6 @@ class Application(Frame):
                 if groupMaximumWeight>maximumWeight:
                     maximumWeight=groupMaximumWeight
         bucketListLength=int(maximumWeight-minimumWeight)+1
-        c = canvas.Canvas(os.path.join("pdf", "stats.pdf"))
-        c.setFont('Courier', 7)
         groupNames=["Veðurlomb", "Gimburlomb", "Ær", "Brundir", "Ikki í býti"]
         i=0
         for group in range(len(groups)):
@@ -488,25 +486,31 @@ class Divider:
             totalSheep=self.known_sheep.get_count()
             if (totalSheep%parts==0 or (self.berintsmork.get()==1 and (totalSheep-12)%parts==0)):
                 partsList,brundir,ignored=self.known_sheep.get_parts(parts,self.berintsmork.get()==1)
+                htmlPrinter=HTMLPrinter()
 
                 for i in range(len(partsList)):
-                    popUp=Printer(self.top, partsList[i].getPrittySheep(), partsList[i].getPartName())
+                    popUp=htmlPrinter.add_part(partsList[i].getPrittySheep())
                 brundirPrint=list(map(lambda x:"{0:4d}{1:10.0f} {2:s}".format(x["number"], x["weight"], x["group"]), brundir))
                 for i in range(int((len(brundir)+1)/2)):
                     currentPrintList=brundirPrint[i*2:i*2+2]
-                    print(currentPrintList)
-                    print()
-                    for j in range(17):
-                        currentPrintList.insert(1,"")
-                    popUp=Printer(self.top, currentPrintList, "Brundir"+str(i))
+#                    for j in range(17):
+#                        currentPrintList.insert(1,"")
+                    block_space=7
+                    if len(currentPrintList)==2:
+                        currentPrintList=["Brundur"]+[currentPrintList[0]]+[""]*block_space+["Brundur"]+[currentPrintList[1]]+[""]*block_space
+                    else:
+                        currentPrintList=["Brundur"]+[currentPrintList[0]]+[""]*(block_space*2+2)
+                    popUp=htmlPrinter.add_part(currentPrintList)
                 for i in range(len(brundirPrint)-1,0,-1):
                     brundirPrint.insert(i,"")
-                popUp=Printer(self.top, brundirPrint, "Brundir")
+                popUp=htmlPrinter.add_part(["Brundir"]+brundirPrint)
 
                 ignoredPrint=list(map(lambda x:"{0:4d}{1:10.0f} {2:s}".format(x["number"], x["weight"], x["group"]), ignored))
 #                for i in range(len(brundirPrint)-1,0,-1):
 #                    brundirPrint.insert(i,"")
-                popUp=Printer(self.top, ignoredPrint, "Ikki í býti")
+                popUp=htmlPrinter.add_part(ignoredPrint)
+                with open(str(datetime.datetime.utcnow())[:-7]+".html","w") as f:
+                    f.write(htmlPrinter.get_html())
 
                 fileStream = open("byti.txt", 'w')
                 for part in partsList:
@@ -607,15 +611,17 @@ class FileBrowser:
     def clearListBox(self):
         self.fileListbox.delete(0, END)
 
-class Printer:
-    def __init__(self, parent, part, partName):
-        c = canvas.Canvas(os.path.join("pdf", "part"+partName+".pdf"))
-        c.setFont('Courier', 28)
-        size=0.8
-        for i in range(len(part)):
-            c.drawString(5*cm, (27-i*size)*cm, part[i])
-        c.showPage()
-        c.save()
+class HTMLPrinter:
+    def __init__(self):
+        self.svgs=[]
+    def add_part(self,part):
+        text="""<svg viewBox="0 0 250 {}" xmlns="http://www.w3.org/2000/svg" font-family="monospace" font-size="20" xml:space="preserve" style="height: 100%;width: 100%;">\n""".format(29+18*len(part))
+        for line in range(len(part)):
+            text+="<text x=\"{}\" y=\"{}\">{}</text>".format(0,20+18*line,part[line])
+        text+="</svg>"
+        self.svgs.append(text)
+    def get_html(self):
+        return """<html><body>"""+"".join(self.svgs)+"</body></html>"
 
 class Correction:
     def validate(self, action, index, value_if_allowed,
@@ -715,8 +721,5 @@ class PopUp:
     def acceptResponce(self):
         self.responce=True
         self.cancel()
-pdfDirectory=os.path.join(os.getcwd(),"pdf")
-if not os.path.exists(pdfDirectory):
-    os.makedirs(pdfDirectory)
 if __name__=="__main__":
     app=Application().start()
