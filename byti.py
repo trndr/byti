@@ -509,7 +509,7 @@ class Divider:
 #                for i in range(len(brundirPrint)-1,0,-1):
 #                    brundirPrint.insert(i,"")
                 popUp=htmlPrinter.add_part(ignoredPrint)
-                with open(str(datetime.datetime.utcnow())[:-7]+".html","w") as f:
+                with open(str(datetime.datetime.utcnow())[:-7].replace(":","-")+".html","w") as f:
                     f.write(htmlPrinter.get_html())
 
                 fileStream = open("byti.txt", 'w')
